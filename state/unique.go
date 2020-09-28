@@ -11,7 +11,7 @@ import (
 
 // GetUniqueObjectID creates a unique object ID (within a bucket).
 // Returns the ID, full key and error, if any.
-func GetUniqueObjectID() (string, string, error) {
+func GetUniqueObjectID(bucket string) (string, string, error) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
@@ -19,7 +19,7 @@ func GetUniqueObjectID() (string, string, error) {
 	}
 	defer client.Close()
 
-	bkt := client.Bucket("state-server")
+	bkt := client.Bucket(bucket)
 	id, _ := utils.GenerateRandomString(12)
 	obj := bkt.Object(fmt.Sprintf("states/%v", id))
 	r, err := obj.NewReader(ctx)

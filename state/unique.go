@@ -19,7 +19,7 @@ func GetUniqueObjectID() (string, error) {
 
 	bkt := client.Bucket("state-server")
 
-	id, _ := generateRandomString(12)
+	id, _ := generateRandomString(14)
 	obj := bkt.Object(fmt.Sprintf("states/%v", id))
 	r, err := obj.NewReader(ctx)
 
@@ -27,9 +27,10 @@ func GetUniqueObjectID() (string, error) {
 	for err == nil {
 		defer r.Close()
 		log.Println("Retrying with new state ID.")
-		id, _ := generateRandomString(12)
+		id, _ := generateRandomString(14)
 		obj = bkt.Object(fmt.Sprintf("states/%v", id))
 		r, err = obj.NewReader(ctx)
 	}
+	log.Printf("Using unique ID %v\n", id)
 	return obj.ObjectName(), nil
 }

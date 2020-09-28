@@ -2,6 +2,7 @@ package state
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -17,32 +18,30 @@ import (
 
 // SaveJSON compress and save neuroglancer JSON state.
 func SaveJSON(c echo.Context) error {
-	jsonState := make(map[string]interface{})
-	err := json.NewDecoder(c.Request().Body).Decode(&jsonState)
-	if err != nil {
-		log.Println(err.Error())
-		return err
+	// Read request body
+	reqBody := []byte{}
+	if c.Request().Body != nil {
+		reqBody, _ = ioutil.ReadAll(c.Request().Body)
 	}
-	log.Println(jsonState)
-	data, err := json.Marshal(jsonState)
+	// Reset
+	// c.Request().Body = ioutil.NopCloser(bytes.NewBuffer(reqBody))
+
+	var buf bytes.Buffer
+	zw := gzip.NewWriter(&buf)
+	n, err := zw.Write(reqBody)
 	if err != nil {
-		log.Printf("json.Marshal: %v", err)
-		panic(err)
+		log.Println(err)
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
+	if err := zw.Close(); err != nil {
+		log.Println(err)
+		return c.String(http.StatusInternalServerError, err.Error())
 	}
 
-	// var compressed bytes.Buffer
-	// w := zlib.NewWriter(&compressed)
-	// defer w.Close()
+	log.Printf("Raw state size: %v bytes.", n)
+	uniqueID, err := writeToBucket(buf.Bytes())
+	// uniqueID, err := writeToBucket(reqBody)
 
-	// n, err := w.Write(data)
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return c.String(http.StatusInternalServerError, err.Error())
-	// }
-	// log.Printf("Raw state size: %v bytes.", n)
-	// uniqueID, err := writeToBucket(compressed.Bytes())
-
-	uniqueID, err := writeToBucket(data)
 	if err != nil {
 		log.Println(err)
 		panic(err)
@@ -113,20 +112,33 @@ func GetJSON(c echo.Context) error {
 	defer rc.Close()
 
 	log.Printf("Read object %v\n", objectName)
-	data, err := ioutil.ReadAll(rc)
+	raw, err := ioutil.ReadAll(rc)
 	if err != nil {
 		return fmt.Errorf("ioutil.ReadAll: %v", err)
 	}
-	log.Printf("Read object %v complete, size %v.\n", objectName, len(data))
+	log.Printf("Read object %v complete, size %v.\n", objectName, len(raw))
 
-	d, err := base64.StdEncoding.DecodeString(string(data))
-	b := bytes.NewBuffer(d)
+	compressed, err := base64.StdEncoding.DecodeString(string(raw))
+	if err != nil {
+		log.Printf("base64.StdEncoding.DecodeString: %v", err)
+		return fmt.Errorf("base64.StdEncoding.DecodeString: %v", err)
+	}
+
+	zr, err := gzip.NewReader(bytes.NewBuffer(compressed))
+	if err != nil {
+		log.Printf("gzip.NewReader: %v", err)
+		return fmt.Errorf("gzip.NewReader: %v", err)
+	}
 
 	jsonState := make(map[string]interface{})
-	err = json.NewDecoder(b).Decode(&jsonState)
+	err = json.NewDecoder(zr).Decode(&jsonState)
 	if err != nil {
 		log.Printf("json.NewDecoder: %v", err)
 		return fmt.Errorf("json.NewDecoder: %v", err)
+	}
+
+	if err := zr.Close(); err != nil {
+		log.Fatal(err)
 	}
 	log.Println(jsonState)
 

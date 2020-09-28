@@ -6,20 +6,21 @@ import (
 	"log"
 
 	"cloud.google.com/go/storage"
+	"github.com/akhileshh/state-server/utils"
 )
 
-// GetUniqueObjectID returns a unique object ID (within a bucket).
-func GetUniqueObjectID() (string, error) {
+// GetUniqueObjectID creates a unique object ID (within a bucket).
+// Returns the ID, full key and error, if any.
+func GetUniqueObjectID() (string, string, error) {
 	ctx := context.Background()
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		return "", fmt.Errorf("storage.NewClient: %v", err)
+		return "", "", fmt.Errorf("storage.NewClient: %v", err)
 	}
 	defer client.Close()
 
 	bkt := client.Bucket("state-server")
-
-	id, _ := generateRandomString(14)
+	id, _ := utils.GenerateRandomString(12)
 	obj := bkt.Object(fmt.Sprintf("states/%v", id))
 	r, err := obj.NewReader(ctx)
 
@@ -27,10 +28,10 @@ func GetUniqueObjectID() (string, error) {
 	for err == nil {
 		defer r.Close()
 		log.Println("Retrying with new state ID.")
-		id, _ := generateRandomString(14)
+		id, _ := utils.GenerateRandomString(12)
 		obj = bkt.Object(fmt.Sprintf("states/%v", id))
 		r, err = obj.NewReader(ctx)
 	}
 	log.Printf("Using unique ID %v\n", id)
-	return obj.ObjectName(), nil
+	return id, obj.ObjectName(), nil
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/akhileshh/state-server/state"
@@ -31,11 +32,11 @@ func main() {
 	e := echo.New()
 	e.Use(middleware.CORSWithConfig(corsConfig))
 
-	e.GET("/json", func(c echo.Context) error {
+	e.GET(state.JSONStateEP, func(c echo.Context) error {
 		return c.String(http.StatusOK, "Hello, World!")
 	})
-	e.GET("/json/:id", state.GetJSON)
-	e.POST("/json/post", state.SaveJSON)
+	e.GET(fmt.Sprintf("%v/:id", state.JSONStateEP), state.GetJSON)
+	e.POST(state.JSONStatePostEP, state.SaveJSON)
 
 	e.Logger.Fatal(e.Start(":8001"))
 }

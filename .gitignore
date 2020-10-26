@@ -16,4 +16,4 @@
 .vscode/
 .devcontainer/
 
-test.go
+coverage.txt

@@ -13,12 +13,12 @@ import (
 func TestGetRequestSchemeAndHostURL(t *testing.T) {
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/", strings.NewReader(""))
-	req.Header.Set("X-Forwarded-Host", "poyntr.co")
+	req.Header.Set("X-Forwarded-Host", "zetta.ai")
 	req.Header.Set(echo.HeaderXForwardedProto, "https")
 
 	rec := httptest.NewRecorder()
 	c := e.NewContext(req, rec)
-	assert.Equal(t, "https://poyntr.co", GetRequestSchemeAndHostURL(c))
+	assert.Equal(t, "https://zetta.ai", GetRequestSchemeAndHostURL(c))
 }
 
 func TestGenerateRandomString(t *testing.T) {

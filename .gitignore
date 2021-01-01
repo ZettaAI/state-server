@@ -17,3 +17,4 @@
 .devcontainer/
 
 coverage.txt
+state-server

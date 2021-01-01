@@ -1,7 +1,7 @@
-FROM golang:1.15.2-buster
+FROM golang:1.15-buster
 
 WORKDIR /app
 COPY . /app
 
-RUN go install
-CMD state-server
+RUN go build
+CMD ./state-server

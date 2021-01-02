@@ -4,9 +4,15 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math/rand"
+	"strconv"
 
 	"cloud.google.com/go/storage"
-	"github.com/akhileshh/state-server/utils"
+)
+
+const (
+	idSpaceLow  = 100000000000000000 // 18 digits
+	idSpaceHigh = 999999999999999999
 )
 
 // GetUniqueObjectID creates a unique object ID (within a bucket).
@@ -19,19 +25,21 @@ func GetUniqueObjectID(bucket string) (string, string, error) {
 	}
 	defer client.Close()
 
+	// id, _ := utils.GenerateRandomString(12)
+	id := idSpaceLow + rand.Intn(idSpaceHigh-idSpaceLow)
+
 	bkt := client.Bucket(bucket)
-	id, _ := utils.GenerateRandomString(12)
-	obj := bkt.Object(fmt.Sprintf("states/%v", id))
+	obj := bkt.Object(fmt.Sprintf("states/%d", id))
 	r, err := obj.NewReader(ctx)
 
 	// repeat until ErrObjectNotExist is returned
 	for err == nil {
 		defer r.Close()
 		log.Println("Retrying with new state ID.")
-		id, _ := utils.GenerateRandomString(12)
-		obj = bkt.Object(fmt.Sprintf("states/%v", id))
+		id := idSpaceLow + rand.Intn(idSpaceHigh-idSpaceLow)
+		obj = bkt.Object(fmt.Sprintf("states/%d", id))
 		r, err = obj.NewReader(ctx)
 	}
 	log.Printf("Using unique ID %v\n", id)
-	return id, obj.ObjectName(), nil
+	return strconv.Itoa(id), obj.ObjectName(), nil
 }

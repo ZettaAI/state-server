@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"time"
 
@@ -17,7 +17,7 @@ func writeStateToBucket(data []byte, bucket string) (string, error) {
 	ctx := context.Background()
 	id, key, err := GetUniqueObjectID(bucket)
 	if err != nil {
-		return "", fmt.Errorf("Creating unique ID: %v", err)
+		return "", fmt.Errorf("creating unique ID: %v", err)
 	}
 
 	client, err := storage.NewClient(ctx)
@@ -31,13 +31,13 @@ func writeStateToBucket(data []byte, bucket string) (string, error) {
 	_, err = fmt.Fprint(w, base64.StdEncoding.EncodeToString(data))
 	if err != nil {
 		return "", fmt.Errorf(
-			"Error writing to object %v: %v", obj.ObjectName(), err)
+			"error writing to object %v: %v", obj.ObjectName(), err)
 	}
 
 	// Close immediately to confirm object has been created.
 	if err := w.Close(); err != nil {
 		return "", fmt.Errorf(
-			"At Close(): error writing to object %v: %v", obj.ObjectName(), err)
+			"at Close(): error writing to object %v: %v", obj.ObjectName(), err)
 	}
 	log.Printf("Created object %v\n", obj.ObjectName())
 	return id, nil
@@ -58,13 +58,13 @@ func readFromBucket(bucket, id string) ([]byte, error) {
 
 	rc, err := client.Bucket(bucket).Object(objectName).NewReader(ctxTO)
 	if err != nil {
-		return nil, fmt.Errorf("Object(%q).NewReader: %v", objectName, err)
+		return nil, fmt.Errorf("object(%q).NewReader: %v", objectName, err)
 	}
 	defer rc.Close()
 
-	raw, err := ioutil.ReadAll(rc)
+	raw, err := io.ReadAll(rc)
 	if err != nil {
-		return nil, fmt.Errorf("ioutil.ReadAll: %v", err)
+		return nil, fmt.Errorf("io.ReadAll: %v", err)
 	}
 	log.Printf("Read object %v complete, size %v.\n", objectName, len(raw))
 	return raw, nil

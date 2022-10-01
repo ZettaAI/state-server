@@ -1,22 +1,41 @@
 package state
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+)
 
-// type remoteLayer struct {
-// 	name string
-// 	body map[string]interface{}
-// }
+// RemoteLayer layer to be persisted
+type RemoteLayer struct {
+	name string
+	body map[string]interface{}
+}
 
 // parseRemoteLayers iterates through layers and
 // identifies which ones need to be read/written remotely.
 func parseRemoteLayers(layersObject interface{}) {
 	layers := layersObject.([]interface{})
-	for i, layer := range layers {
+	for _, layer := range layers {
 		layerMap := layer.(map[string]interface{})
-		fmt.Printf("%d layer name: %s\n", i, layerMap["name"])
+		remoteLayer := RemoteLayer{layerMap["name"].(string), layerMap}
+		err := remoteLayer.save()
+		if err != nil {
+			log.Println(err)
+		}
 	}
 }
 
-// func (v *remoteLayer) save() {
-
-// }
+func (l *RemoteLayer) save() error {
+	bytes, err := json.Marshal(l.body)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("layer name: %s, size: %d\n", l.name, len(bytes))
+	_, err = writeDataToBucket(bytes, os.Getenv("REMOTE_LAYERS_BUCKET"), l.name, "")
+	if err != nil {
+		return err
+	}
+	return nil
+}

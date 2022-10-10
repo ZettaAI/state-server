@@ -30,15 +30,24 @@ func SaveJSON(c echo.Context) error {
 		user = c.Request().RemoteAddr
 	}
 
-	body, err := exctractAndParseJSONState(c)
+	data, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		log.Println(err)
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
+	state, err := parseStatesAndRunActions(data)
 	if err != nil {
 		log.Println(err)
 		return c.String(http.StatusInternalServerError, err.Error())
 	}
 
-	// write compressed content into a unique object
-	log.Printf("raw state size: %d bytes.", len(body))
-	uniqueID, err := writeDataToBucket(body, os.Getenv("STATE_SERVER_BUCKET_GCS"), "", user)
+	data, err = json.Marshal(state)
+	if err != nil {
+		log.Println(err)
+		return c.String(http.StatusInternalServerError, err.Error())
+	}
+
+	uniqueID, err := writeDataToBucket(data, os.Getenv("STATE_SERVER_BUCKET_GCS"), user)
 	if err != nil {
 		log.Println(err)
 		return c.String(http.StatusInternalServerError, err.Error())
@@ -53,53 +62,48 @@ func SaveJSON(c echo.Context) error {
 
 // GetJSON return neuroglancer JSON state of given ID.
 func GetJSON(c echo.Context) error {
-	raw, err := readFromBucket(os.Getenv("STATE_SERVER_BUCKET_GCS"), c.Param("id"))
+	raw, err := readObject(
+		os.Getenv("STATE_SERVER_BUCKET_GCS"), fmt.Sprintf("states/%s", c.Param("id")))
 	if err != nil {
-		log.Printf("readFromBucket: %v", err)
-		return fmt.Errorf("readFromBucket: %v", err)
+		err = fmt.Errorf("readObject: %v", err)
+		log.Println(err)
+		return err
 	}
 
-	compressed, err := base64.StdEncoding.DecodeString(string(raw))
+	data, err := base64.StdEncoding.DecodeString(string(raw))
 	if err != nil {
-		log.Printf("base64.StdEncoding.DecodeString: %v", err)
-		return fmt.Errorf("base64.StdEncoding.DecodeString: %v", err)
+		data = raw
 	}
 
-	zr, err := gzip.NewReader(bytes.NewBuffer(compressed))
+	zr, err := gzip.NewReader(bytes.NewBuffer(data))
 	if err != nil {
-		log.Printf("gzip.NewReader: %v", err)
 		return fmt.Errorf("gzip.NewReader: %v", err)
 	}
 
 	log.Printf("%v: %v", c.Param("id"), zr.Comment)
 	jsonState := make(map[string]interface{})
+
 	err = json.NewDecoder(zr).Decode(&jsonState)
 	if err != nil {
-		log.Printf("json.NewDecoder: %v", err)
 		return fmt.Errorf("json.NewDecoder: %v", err)
 	}
 
-	parseRemoteLayers(jsonState["layers"])
 	if err := zr.Close(); err != nil {
-		log.Printf("gzip.NewReader.Close: %v", err)
-		return fmt.Errorf("gzip.NewReader.Close: %v", err)
+		err = fmt.Errorf("gzip.NewReader.Close: %v", err)
+		log.Println(err)
+		return err
 	}
 	return c.JSON(http.StatusOK, jsonState)
 }
 
-// exctractAndParseJSONState extract state/JSON from request body
+// parseStatesAndRunActions extract state/JSON from request body
 // parse state for remote layers and write them to bucket
-func exctractAndParseJSONState(c echo.Context) ([]byte, error) {
-	body, err := io.ReadAll(c.Request().Body)
-	if err != nil {
-		return nil, err
-	}
-
+func parseStatesAndRunActions(body []byte) (map[string]interface{}, error) {
 	var stateMap map[string]interface{}
-	err = json.Unmarshal(body, &stateMap)
+	err := json.Unmarshal(body, &stateMap)
 	if err != nil {
 		return nil, err
 	}
-	parseRemoteLayers(stateMap["layers"])
-	return body, nil
+	stateMap["layers"] = runLayerActions(stateMap["layers"])
+	return stateMap, nil
 }

@@ -1,0 +1,9 @@
+steps:
+- name: "gcr.io/cloud-builders/docker"
+  timeout: 600s
+  args:
+  - build
+  - "--tag=gcr.io/$PROJECT_ID/state-server:$TAG_NAME"
+  - .
+images:
+- "gcr.io/$PROJECT_ID/state-server:$TAG_NAME"

@@ -29,6 +29,9 @@ func runLayerActions(layersObject interface{}) []map[string]interface{} {
 		layerMap := layer.(map[string]interface{})
 		remoteLayer := RemoteLayer{layerMap["name"].(string), layerMap}
 		ran, err := remoteLayer.runAction()
+		if ran {
+			remoteLayer.name = READ + remoteLayer.name
+		}
 		actionsRan = actionsRan || ran
 		if err != nil {
 			log.Println(err)

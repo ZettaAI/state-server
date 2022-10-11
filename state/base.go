@@ -81,9 +81,9 @@ func GetJSON(c echo.Context) error {
 	}
 
 	log.Printf("%v: %v", c.Param("id"), zr.Comment)
-	jsonState := make(map[string]interface{})
+	stateMap := make(map[string]interface{})
 
-	err = json.NewDecoder(zr).Decode(&jsonState)
+	err = json.NewDecoder(zr).Decode(&stateMap)
 	if err != nil {
 		return fmt.Errorf("json.NewDecoder: %v", err)
 	}
@@ -93,7 +93,10 @@ func GetJSON(c echo.Context) error {
 		log.Println(err)
 		return err
 	}
-	return c.JSON(http.StatusOK, jsonState)
+	if layers, ok := stateMap["layers"]; ok {
+		stateMap["layers"] = runLayerActions(layers)
+	}
+	return c.JSON(http.StatusOK, stateMap)
 }
 
 // parseStatesAndRunActions extract state/JSON from request body

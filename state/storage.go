@@ -60,8 +60,12 @@ func writeObject(data []byte, bucket, key string, create bool) (int, error) {
 	}
 	defer client.Close()
 
-	obj := client.Bucket(bucket).Object(key).If(
-		storage.Conditions{DoesNotExist: create})
+	obj := client.Bucket(bucket).Object(key)
+	if create {
+		obj = client.Bucket(bucket).Object(key).If(
+			storage.Conditions{DoesNotExist: true})
+	}
+
 	w := obj.NewWriter(ctx)
 	n, err := w.Write(data)
 

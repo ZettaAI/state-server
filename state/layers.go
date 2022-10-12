@@ -62,6 +62,7 @@ func (layer *RemoteLayer) runAction() (bool, error) {
 }
 
 func (layer *RemoteLayer) create() error {
+	layer.body["name"] = layer.name
 	bytes, err := json.Marshal(layer.body)
 	if err != nil {
 		return err
@@ -87,6 +88,7 @@ func (layer *RemoteLayer) read() error {
 }
 
 func (layer *RemoteLayer) update() error {
+	layer.body["name"] = layer.name
 	bytes, err := json.Marshal(layer.body)
 	if err != nil {
 		return err

@@ -20,6 +20,8 @@ const (
 	JSONStateEP = "/json"
 	// JSONStatePostEP create endpoint
 	JSONStatePostEP = "/json/post"
+	// AuthTokenIdentifier
+	AuthTokenIdentifier = "middle_auth_token"
 )
 
 // SaveJSON compress and save neuroglancer JSON state.
@@ -51,6 +53,16 @@ func SaveJSON(c echo.Context) error {
 	if err != nil {
 		log.Println(err)
 		return c.String(http.StatusInternalServerError, err.Error())
+	}
+
+	tokenCookie, err := c.Cookie(AuthTokenIdentifier)
+	if err == nil {
+		c.SetCookie(&http.Cookie{
+			Name:     AuthTokenIdentifier,
+			Value:    tokenCookie.Value,
+			Secure:   true,
+			HttpOnly: true,
+		})
 	}
 
 	return c.JSON(
@@ -96,6 +108,17 @@ func GetJSON(c echo.Context) error {
 	if layers, ok := stateMap["layers"]; ok {
 		stateMap["layers"] = runLayerActions(layers)
 	}
+
+	tokenCookie, err := c.Cookie(AuthTokenIdentifier)
+	if err == nil {
+		c.SetCookie(&http.Cookie{
+			Name:     AuthTokenIdentifier,
+			Value:    tokenCookie.Value,
+			Secure:   true,
+			HttpOnly: true,
+		})
+	}
+
 	return c.JSON(http.StatusOK, stateMap)
 }
 
